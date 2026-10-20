@@ -107,11 +107,11 @@ READING THE REPORT
 ------------------
 A clean run looks like this:
 
-  ==============================================================
+
     CloverConfigChecker -- validating config.plist
   --------------------------------------------------------------
     config : /Users/chris/Desktop/config.plist
-  ==============================================================
+
 
   Verified sections:
     ACPI:                 20 keys verified
