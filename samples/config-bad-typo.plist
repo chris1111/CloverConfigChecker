@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ACPI</key>
+	<dict>
+		<key>DSDT</key>
+		<dict>
+			<key>Fixes</key>
+			<dict>
+				<key>FixHPET</key>
+				<true/>
+			</dict>
+			<key>Patches</key>
+			<array>
+				<dict>
+					<key>Comment</key>
+					<string>x</string>
+					<key>Find</key>
+					<data>
+					X09TSQ==
+					</data>
+					<key>Replase</key>
+					<data>
+					WE9TSQ==
+					</data>
+				</dict>
+			</array>
+		</dict>
+		<key>HaltEnabler</key>
+		<false/>
+	</dict>
+	<key>Boot</key>
+	<dict>
+		<key>Arguments</key>
+		<string>-v</string>
+		<key>NeverHiberante</key>
+		<true/>
+		<key>TimeOut</key>
+		<integer>5</integer>
+	</dict>
+	<key>GUI</key>
+	<dict>
+		<key>Scran</key>
+		<dict>
+			<key>Tool</key>
+			<true/>
+		</dict>
+		<key>Thmee</key>
+		<string>Catalina</string>
+	</dict>
+	<key>KextPatches</key>
+	<dict>
+		<key>AppleRTC</key>
+		<true/>
+	</dict>
+	<key>SystemParameters</key>
+	<dict>
+		<key>InjectKexts</key>
+		<string>Detect</string>
+		<key>InjectSystmID</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Boot</key>
+	<dict>
+		<key>Arguments</key>
+		<string>-v</string>
+		<key>Debug</key>
+		<dict>
+			<key>SysLog</key>
+			<true/>
+		</dict>
+		<key>Legacy</key>
+		<string>Maybe</string>
+		<key>Timeout</key>
+		<string>five</string>
+	</dict>
+	<key>Devices</key>
+	<dict>
+		<key>Audio</key>
+		<dict>
+			<key>Inject</key>
+			<string>Detect</string>
+		</dict>
+		<key>FakeID</key>
+		<dict>
+			<key>IntelGFX</key>
+			<string>0xZZ168086</string>
+		</dict>
+		<key>USB</key>
+		<dict>
+			<key>FixOwnership</key>
+			<string>yes please</string>
+		</dict>
+	</dict>
+	<key>GUI</key>
+	<dict>
+		<key>ScreenResolution</key>
+		<string>1920 by 1080</string>
+		<key>Theme</key>
+		<dict>
+			<key>Embedded</key>
+			<string>maybe</string>
+		</dict>
+		<key>Timezone</key>
+		<integer>99</integer>
+	</dict>
+	<key>Graphics</key>
+	<dict>
+		<key>Inject</key>
+		<dict>
+			<key>ATI</key>
+			<false/>
+			<key>Intel</key>
+			<true/>
+			<key>NVidia</key>
+			<false/>
+		</dict>
+		<key>VRAM</key>
+		<string>a lot</string>
+		<key>VideoPorts</key>
+		<integer>9</integer>
+	</dict>
+	<key>KernelAndKextPatches</key>
+	<dict>
+		<key>AppleRTC</key>
+		<true/>
+		<key>KextsToPatch</key>
+		<array>
+			<dict>
+				<key>Comment</key>
+				<string>mismatched find/replace</string>
+				<key>Disabled</key>
+				<false/>
+				<key>Find</key>
+				<data>
+				AAA=
+				</data>
+				<key>Name</key>
+				<string>com.apple.driver.AppleAHCIPort</string>
+				<key>Replace</key>
+				<data>
+				AQAAAAA=
+				</data>
+			</dict>
+		</array>
+	</dict>
+	<key>RtVariables</key>
+	<dict>
+		<key>CsrActiveConfig</key>
+		<string>0x0A87</string>
+		<key>MLB</key>
+		<string>C02032109R5DC771H</string>
+	</dict>
+	<key>SystemParameters</key>
+	<dict>
+		<key>CustomUUID</key>
+		<string>not-a-uuid</string>
+		<key>InjectKexts</key>
+		<string>Sometimes</string>
+	</dict>
+</dict>
+</plist>

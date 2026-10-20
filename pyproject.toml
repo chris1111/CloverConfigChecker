@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clover-config-checker"
+version = "1.8.3"
+description = "Clover EFI config.plist validator with fuzzy-match typo suggestions"
+readme = "README.txt"
+license = { text = "MIT" }
+authors = [{ name = "CloverConfigChecker contributors" }]
+requires-python = ">=3.8"
+keywords = ["clover", "hackintosh", "config.plist", "efi", "bootloader", "validator"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Boot",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.urls]
+Clover = "https://github.com/CloverHackyColor/CloverBootloader"
+
+[project.scripts]
+clover-config-checker = "clover_config_checker.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["clover_config_checker*"]
