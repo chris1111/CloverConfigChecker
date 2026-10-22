@@ -183,7 +183,7 @@ FOR DEVELOPERS
 - License: MIT, see LICENSE
 
 ----------------------------------------------------------------
-CloverConfigChecker v1.1 -- MIT license.
+CloverConfigChecker v1.8.3 -- MIT license.
 A companion tool for the Clover EFI bootloader.
 
  
