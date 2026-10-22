@@ -1,6 +1,6 @@
-CloverConfigChecker -- check any Clover config.plist
-Pure Python -- no install needed -- macOS, Linux, Windows
+[![pages-build-deployment](https://github.com/chris1111/CloverConfigChecker/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/chris1111/CloverConfigChecker/actions/workflows/pages/pages-build-deployment) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/chris1111/CloverConfigChecker/blob/main/LICENSE)
 
+CloverConfigChecker -- check any Clover config.plist Pure Python -- no install needed -- macOS, Linux, Windows
 
 WHAT IT IS
 ----------
