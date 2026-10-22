@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clover Config Checker</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0a0a0a; color: #f5f5f5;
+    min-height: 100vh; display: flex; flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  header { border-bottom: 1px solid #1c1c1c; }
+  .wrap { max-width: 56rem; margin: 0 auto; padding: 0 1.25rem; width: 100%; }
+  .head-inner { display: flex; align-items: center; gap: .8rem; padding: 2rem 0 1.3rem; flex-wrap: wrap; }
+  .logo {
+    width: 2.5rem; height: 2.5rem; border-radius: .5rem; flex: none;
+    background: #022c22; outline: 1px solid #14532d;
+    display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+  }
+  h1 { font-size: 1.2rem; font-weight: 600; }
+  .sub { font-size: .8rem; color: #8f8f8f; }
+  .badge {
+    margin-left: auto; font-size: .72rem; padding: .2rem .6rem; border-radius: 999px;
+    border: 1px solid #14532d; background: #052e1b; color: #34d399; white-space: nowrap;
+  }
+  .intro { max-width: 44rem; color: #b3b3b3; font-size: .88rem; line-height: 1.6; padding-bottom: 1.4rem; }
+  .intro code { background: #171717; border: 1px solid #262626; border-radius: .3rem; padding: .05rem .35rem; font-size: .78rem; color: #34d399; }
+  main { flex: 1; padding: 1.4rem 0 2.2rem; }
+  section { background: #131313; border: 1px solid #262626; border-radius: .75rem; padding: 1.2rem; margin-bottom: 1rem; }
+  h2 {
+    font-size: .72rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+    color: #8f8f8f; margin-bottom: .85rem;
+  }
+  #drop {
+    border: 1.5px dashed #3f3f3f; border-radius: .6rem; padding: 1.6rem 1rem;
+    text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  #drop:hover, #drop.over { border-color: #059669; background: rgba(5,150,105,.05); }
+  #drop .big { font-size: .9rem; color: #e5e5e5; }
+  #drop .hint { font-size: .76rem; color: #737373; margin-top: .3rem; }
+  textarea {
+    background: #0d0d0d; border: 1px solid #2e2e2e; border-radius: .45rem;
+    color: #e5e5e5; font-size: .82rem; padding: .6rem .75rem; width: 100%;
+    min-height: 6rem; resize: vertical; margin-top: .8rem; display: block;
+  }
+  textarea:focus { outline: none; border-color: #059669; }
+  .row { display: flex; gap: .55rem; margin-top: .8rem; }
+  button {
+    background: #059669; color: #fff; border: none; border-radius: .45rem;
+    font-size: .85rem; font-weight: 600; padding: .6rem 1.1rem; cursor: pointer;
+    min-height: 44px;
+  }
+  button:hover { background: #10b981; }
+  button.ghost { background: #1c1c1c; color: #d4d4d4; }
+  button.ghost:hover { background: #262626; }
+  #status { font-size: .8rem; color: #a3a3a3; margin-top: .8rem; min-height: 1.2em; }
+  #status.err { color: #f87171; }
+  #status.ok { color: #34d399; }
+  #outwrap { display: none; }
+  #report {
+    background: #0d0d0d; border: 1px solid #2e2e2e; border-radius: .6rem;
+    padding: 1rem; font-size: .76rem; line-height: 1.55; white-space: pre;
+    overflow: auto; max-height: 32rem; color: #d4d4d4;
+  }
+  .privacy { font-size: .76rem; color: #737373; line-height: 1.6; }
+  .privacy b { color: #a3a3a3; }
+  footer { border-top: 1px solid #1c1c1c; margin-top: auto; }
+  .foot-inner { max-width: 56rem; margin: 0 auto; padding: .9rem 1.25rem; text-align: center; font-size: .72rem; color: #5c5c5c; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="head-inner">
+      <span class="logo" aria-hidden="true">🍀</span>
+      <div>
+        <h1>Clover Config Checker</h1>
+        <p class="sub">Schema-based validation for any Clover EFI config.plist</p>
+      </div>
+      <span class="badge" id="ver">v?</span>
+    </div>
+    <p class="intro">
+      The same checker as the command-line tool, running inside this page.
+      Drop a <code>config.plist</code> (XML or binary) and get the standard report:
+      unknown keys, wrong value types, duplicates, documentation-suffix
+      <code>?</code> keys, fuzzy-match typo suggestions and more.
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section aria-label="Choose a config">
+    <h2>Pick your config.plist</h2>
+    <div id="drop" role="button" tabindex="0" aria-label="Drop a config.plist here or click to browse">
+      <p class="big">Drag &amp; drop your <span class="mono">config.plist</span> here</p>
+      <p class="hint">or click to browse — XML and binary plists both work</p>
+    </div>
+    <input type="file" id="file" accept=".plist,.xml,text/xml,application/xml" hidden>
+    <textarea id="paste" class="mono" placeholder="…or paste the XML content of your config.plist" aria-label="Paste XML content"></textarea>
+    <div class="row">
+      <button type="button" id="run">Check pasted text</button>
+      <button type="button" class="ghost" id="clear">Clear</button>
+    </div>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section id="outwrap" aria-label="Report">
+    <h2>Report</h2>
+    <pre id="report" class="mono" tabindex="0"></pre>
+  </section>
+
+  <p class="privacy"><b>Works 100% offline:</b> this page is a single file inside the
+  CloverConfigChecker folder with no network code at all — open it from the folder,
+  drop your config in, and everything runs on your own machine. Your config.plist
+  is never uploaded, stored or sent anywhere.</p>
+</main>
+
+<footer>
+  <div class="foot-inner">CloverConfigChecker <span id="ver2">?</span> · same engine as
+  <span class="mono">run_config_check.sh</span> · MIT license</div>
+</footer>
+
+<script>
+"use strict";
+/* ============================================================================
+ * CloverConfigChecker -- offline browser core (pure JavaScript)
+ *
+ * 1:1 port of the Python package (clover_config_checker) so the offline
+ * index.html reports EXACTLY like the CLI:
+ *   fuzzy.py      -> levenshtein / seqRatio / similar / formatSuggestions
+ *   plist parsing -> parseXmlPlist / parseBinaryPlist (+ duplicate scan)
+ *   checker.py    -> checkConfig (manual mode)
+ *   report.py     -> formatReport (plain text, full report)
+ *
+ * The schema JSON injected next to this code is GENERATED from
+ * schema_clover.py by scripts/gen_web_schema.py -- data can never drift.
+ * ==========================================================================*/
+
+/* ---------------------------------------------------- fuzzy.py port ---- */
+
+/* Schema cycles (GUI/Custom/Entries[]/SubEntries[]) come out of the
+ * generator as {"$ref": id}; resolve them to live object references so the
+ * JS walk sees exactly the shared Field objects the Python walk sees. */
+function resolveSchemaRefs(schema) {
+  const paths = schema["$refpaths"] || {};
+  function nodeAt(keys) {
+    let n = schema;
+    for (const k of keys) n = n[k];
+    return n;
+  }
+  const visited = new Set();
+  function walk(node) {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== "object") return;
+    if (visited.has(node)) return;      // cycles now point at real objects
+    visited.add(node);
+    for (const k of Object.keys(node)) {
+      const v = node[k];
+      if (v && typeof v === "object" && !Array.isArray(v) && v.$ref !== undefined) {
+        node[k] = nodeAt(paths[v.$ref]);   // target is an ancestor: already walked
+      } else {
+        walk(v);
+      }
+    }
+  }
+  walk(schema);
+  return schema;
+}
+
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let prev = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    const ca = a[i - 1];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = ca === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/* difflib.SequenceMatcher(None, a, b).ratio() equivalent:
+   2*M/T where M = total length of matching blocks (Ratcliff-Obershelp). */
+function seqRatio(a, b) {
+  if (!a.length && !b.length) return 1.0;
+  let m = 0;
+  const blocks = [];
+  (function find(i1, i2, j1, j2) {
+    if (i1 >= i2 || j1 >= j2) return;
+    // longest common substring (DP), first-longest with earliest indices
+    let best = 0, bi = -1, bj = -1;
+    const prevRow = new Array(j2 - j1 + 1).fill(0);
+    for (let i = i1; i < i2; i++) {
+      const cur = [0];
+      for (let j = j1; j < j2; j++) {
+        cur[j - j1 + 1] = a[i] === b[j] ? prevRow[j - j1] + 1 : 0;
+        if (cur[j - j1 + 1] > best) {
+          best = cur[j - j1 + 1]; bi = i; bj = j;
+        }
+      }
+      for (let k = 0; k < cur.length; k++) prevRow[k] = cur[k];
+    }
+    if (best === 0) return;
+    m += best;
+    find(i1, bi - best + 1, j1, bj - best + 1);
+    find(bi + 1, i2, bj + 1, j2);
+  })(0, a.length, 0, b.length);
+  return (2.0 * m) / (a.length + b.length);
+}
+
+function similar(candidate, validNames, maxSuggestions, cutoff) {
+  maxSuggestions = maxSuggestions || 3;
+  cutoff = cutoff === undefined ? 0.72 : cutoff;
+  const cl = candidate.toLowerCase();
+  const scored = [];
+  for (const name of validNames) {
+    const nl = name.toLowerCase();
+    const ratio = seqRatio(cl, nl);
+    const dist = levenshtein(cl, nl);
+    const levRatio = 1.0 - dist / Math.max(cl.length, nl.length, 1);
+    let score = Math.max(ratio, levRatio);
+    if (cl.length >= 5 && nl.indexOf(cl) !== -1) score = Math.max(score, 0.8);
+    if (score >= cutoff) scored.push([score, name]);
+  }
+  scored.sort((x, y) => (y[0] - x[0]) || (x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0));
+  return scored.slice(0, maxSuggestions).map((s) => s[1]);
+}
+
+function formatSuggestions(sug) {
+  if (!sug || !sug.length) return "";
+  return " (similar to " + sug.map((s) => "'" + s + "'").join(", ") + ")";
+}
+
+/* ------------------------------------------------ plist value model ---- */
+/* dict -> Map (insertion order kept), array -> Array,
+   scalar -> {t: 'string'|'integer'|'real'|'boolean'|'data'|'date', v}   */
+
+function plistTypeName(v) {
+  if (v instanceof Map) return "dict";
+  if (Array.isArray(v)) return "array";
+  if (v && typeof v === "object" && v.t) return v.t;
+  return "unknown";
+}
+
+function base64Decode(s) {
+  const b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const clean = s.replace(/[^A-Za-z0-9+/=]/g, "");
+  const out = [];
+  let bits = 0, acc = 0;
+  for (let i = 0; i < clean.length; i++) {
+    const c = clean[i];
+    if (c === "=") break;
+    acc = (acc << 6) | b64.indexOf(c);
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((acc >> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(out);
+}
+
+function decodeEntities(s) {
+  return s
+    .replace(/&(amp|lt|gt|quot|apos|#x[0-9A-Fa-f]+|#[0-9]+);/g, (m, g) => {
+      if (g === "amp") return "&";
+      if (g === "lt") return "<";
+      if (g === "gt") return ">";
+      if (g === "quot") return '"';
+      if (g === "apos") return "'";
+      if (g[1] === "x") return String.fromCodePoint(parseInt(g.slice(2), 16));
+      return String.fromCodePoint(parseInt(g.slice(1), 10));
+    });
+}
+
+/* --- XML plist parser (hand-rolled: works in browser AND bun/node) --- */
+
+function parseXmlPlist(text) {
+  // tokenize: open tags, close tags, text nodes
+  text = text
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<\?[\s\S]*?\?>/g, "")
+    .replace(/<!DOCTYPE[^>[]*(\[[\s\S]*?\])?[^>]*>/gi, "");
+
+  const toks = [];
+  const tagRe = /<(\/?)([A-Za-z_][A-Za-z0-9_-]*)([^>]*?)(\/?)>|([^<]+)/g;
+  let m;
+  while ((m = tagRe.exec(text)) !== null) {
+    if (m[5] !== undefined) {
+      if (m[5].trim().length) toks.push({ tx: decodeEntities(m[5]) });
+    } else {
+      toks.push({ open: m[1] !== "/", tag: m[2], self: m[4] === "/" });
+    }
+  }
+
+  const dups = [];
+  let pos = 0;
+
+  function err(msg) { return { err: msg }; }
+
+  function textUntilClose(tag) {
+    // collect text tokens until the matching close tag; leaves never nest
+    let s = "";
+    while (pos < toks.length) {
+      const t = toks[pos];
+      if (t.tx !== undefined) { s += t.tx; pos++; continue; }
+      if (!t.open && t.tag === tag) { pos++; return s; }
+      return null;                        // unexpected tag inside leaf
+    }
+    return null;
+  }
+
+  function parseValue(path) {
+    if (pos >= toks.length) return err("unexpected end of plist");
+    const t = toks[pos++];
+    if (t.tx !== undefined) return err("unexpected text outside element");
+    if (!t.open) return err("unexpected closing tag </" + t.tag + ">");
+
+    if (t.tag === "plist") {              // wrapper
+      const r = parseValue(path);
+      if (r.err) return r;
+      return { v: r.v };
+    }
+    if (t.tag === "dict") {
+      if (t.self) return { v: new Map() };
+      const map = new Map();
+      for (;;) {
+        if (pos >= toks.length) return err("unterminated <dict>");
+        const kt = toks[pos++];
+        if (kt.tx !== undefined) return err("unexpected text inside <dict>");
+        if (!kt.open) {
+          if (kt.tag === "dict") break;   // dict closed
+          return err("unexpected </" + kt.tag + "> where <key> expected");
+        }
+        if (kt.tag !== "key") return err("expected <key> in dict, found <" + kt.tag + ">");
+        const keyText = textUntilClose("key");
+        if (keyText === null) return err("unterminated <key>");
+        if (map.has(keyText)) dups.push([path, keyText]);
+        const vr = parseValue(path ? path + "/" + keyText : keyText);
+        if (vr.err) return vr;
+        map.set(keyText, vr.v);           // last occurrence wins (like plistlib)
+      }
+      return { v: map };
+    }
+    if (t.tag === "array") {
+      if (t.self) return { v: [] };
+      const arr = [];
+      for (;;) {
+        if (pos >= toks.length) return err("unterminated <array>");
+        const nt = toks[pos];
+        if (nt.tx === undefined && !nt.open && nt.tag === "array") { pos++; break; }
+        const vr = parseValue(path + "[" + arr.length + "]");
+        if (vr.err) return vr;
+        arr.push(vr.v);
+      }
+      return { v: arr };
+    }
+    if (t.tag === "true") return { v: { t: "boolean", v: true } };
+    if (t.tag === "false") return { v: { t: "boolean", v: false } };
+    if (["string", "integer", "real", "data", "date"].indexOf(t.tag) >= 0) {
+      if (t.self) {
+        if (t.tag === "string") return { v: { t: "string", v: "" } };
+        if (t.tag === "data") return { v: { t: "data", v: new Uint8Array(0) } };
+        return err("empty <" + t.tag + "/>");
+      }
+      const raw = textUntilClose(t.tag);
+      if (raw === null) return err("unterminated <" + t.tag + ">");
+      const s = raw.trim();
+      if (t.tag === "string") return { v: { t: "string", v: raw } };
+      if (t.tag === "data") return { v: { t: "data", v: base64Decode(raw) } };
+      if (t.tag === "date") return { v: { t: "date", v: s } };
+      if (t.tag === "integer") {
+        if (!/^-?[0-9]+$/.test(s)) return err("invalid integer '" + s + "'");
+        return { v: { t: "integer", v: parseInt(s, 10) } };
+      }
+      const f = parseFloat(s);
+      if (isNaN(f)) return err("invalid real '" + s + "'");
+      return { v: { t: "real", v: f } };
+    }
+    return err("unsupported element <" + t.tag + ">");
+  }
+
+  const result = parseValue("");
+  if (result.err) return { ok: false, error: "plist parse error: " + result.err };
+  if (result.v === undefined)
+    return { ok: false, error: "not a valid plist file (XML or binary expected)" };
+  return { ok: true, value: result.v, dups: dups };
+}
+/* --- binary plist (bplist00) parser, subset used by Clover configs --- */
+
+function parseBinaryPlist(u8) {
+  function err(msg) { return { ok: false, error: "plist parse error: " + msg }; }
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const trailer = u8.length - 32;
+  const numObjects = Number(dv.getBigUint64(trailer + 8));
+  const topObject = Number(dv.getBigUint64(trailer + 16));
+  const offsetTableOffset = Number(dv.getBigUint64(trailer + 24));
+  const offsetIntSize = u8[trailer + 6];
+  const objectRefSize = u8[trailer + 7];
+
+  function offset(i) {
+    let o = 0;
+    for (let k = 0; k < offsetIntSize; k++)
+      o = o * 256 + u8[offsetTableOffset + i * offsetIntSize + k];
+    return o;
+  }
+  function readInt(p, nbytes) {
+    let v = 0n;
+    for (let k = 0; k < nbytes; k++) v = (v << 8n) | BigInt(u8[p + k]);
+    if (nbytes === 16 && u8[p] >= 0x80) return -(2n ** 128n - v);
+    const n = Number(v);
+    return n;
+  }
+
+  let dups = null; // binary plists: no duplicate scan (matches Python)
+
+  function parseObj(i) {
+    if (i >= numObjects) throw new Error("object index out of range");
+    const p = offset(i);
+    const marker = u8[p];
+    const hi = marker >> 4, lo = marker & 0x0f;
+    function objRef(k) {
+      let v = 0;
+      for (let x = 0; x < objectRefSize; x++)
+        v = v * 256 + u8[p + k * objectRefSize + x];
+      return v;
+    }
+    switch (hi) {
+      case 0x0:
+        if (lo === 0x0) return { t: "boolean", v: null };   // null
+        if (lo === 0x8) return { t: "boolean", v: false };
+        if (lo === 0x9) return { t: "boolean", v: true };
+        if (lo === 0xf) return null;                        // fill
+        throw new Error("unknown primitive 0x" + marker.toString(16));
+      case 0x1: {
+        const nbytes = 1 << lo;
+        return { t: "integer", v: readInt(p + 1, nbytes) };
+      }
+      case 0x2: {
+        const nbytes = 1 << lo;
+        if (nbytes === 4) return { t: "real", v: dv.getFloat32(p + 1) };
+        return { t: "real", v: dv.getFloat64(p + 1) };
+      }
+      case 0x3: {
+        const secs = dv.getFloat64(p + 1);
+        return { t: "date", v: new Date((secs + 978307200) * 1000).toISOString() };
+      }
+      case 0x4: {
+        let n = lo, q = p + 1;
+        if (n === 0xf) { const ni = parseObjAt(q); n = ni.v; q = ni.next; }
+        return { t: "data", v: u8.slice(q, q + n) };
+      }
+      case 0x5: {
+        let n = lo, q = p + 1;
+        if (n === 0xf) { const ni = parseObjAt(q); n = ni.v; q = ni.next; }
+        let s = "";
+        for (let k = 0; k < n; k++) s += String.fromCharCode(u8[q + k]);
+        return { t: "string", v: s };
+      }
+      case 0x6: {
+        let n = lo, q = p + 1;
+        if (n === 0xf) { const ni = parseObjAt(q); n = ni.v; q = ni.next; }
+        let s = "";
+        for (let k = 0; k < n; k++) s += String.fromCharCode(dv.getUint16(q + k * 2));
+        return { t: "string", v: s };
+      }
+      case 0x8: case 0xc: {                                    // array (set)
+        let n = lo;
+        let q = p + 1;
+        if (n === 0xf) { const ni = parseObjAt(q); n = ni.v; q = ni.next; }
+        const arr = [];
+        for (let k = 0; k < n; k++) arr.push(parseObj(objRefAt(q, k)));
+        return arr;
+      }
+      case 0xd: {
+        let n = lo;
+        let q = p + 1;
+        if (n === 0xf) { const ni = parseObjAt(q); n = ni.v; q = ni.next; }
+        const map = new Map();
+        for (let k = 0; k < n; k++) {
+          const keyObj = parseObj(objRefAt(q, k));
+          const valObj = parseObj(objRefAt(q + n, k));
+          map.set(String(keyObj.v !== undefined ? keyObj.v : keyObj), valObj);
+        }
+        return map;
+      }
+      default:
+        throw new Error("unsupported marker 0x" + marker.toString(16));
+    }
+  }
+  function objRefAt(q, k) {
+    let v = 0;
+    for (let x = 0; x < objectRefSize; x++)
+      v = v * 256 + u8[q + k * objectRefSize + x];
+    return v;
+  }
+  function parseObjAt(q) {
+    // parse a length integer object at absolute position q
+    const marker = u8[q];
+    const hi = marker >> 4, lo = marker & 0x0f;
+    if (hi === 0x1) {
+      const nbytes = 1 << lo;
+      let v = 0;
+      for (let k = 0; k < nbytes; k++) v = v * 256 + u8[q + 1 + k];
+      return { v: v, next: q + 1 + nbytes };
+    }
+    throw new Error("bad length marker");
+  }
+
+  try {
+    const value = parseObj(topObject);
+    return { ok: true, value: value, dups: [] };
+  } catch (e) {
+    return err(e.message || "malformed binary plist");
+  }
+}
+
+function parsePlistBytes(u8) {
+  if (u8.length >= 8 && String.fromCharCode(...u8.slice(0, 6)) === "bplist")
+    return parseBinaryPlist(u8);
+  let text;
+  try {
+    text = new TextDecoder("utf-8", { fatal: false }).decode(u8);
+  } catch (e) {
+    return { ok: false, error: "not a valid plist file (XML or binary expected)" };
+  }
+  if (text.indexOf("<") === -1)
+    return { ok: false, error: "not a valid plist file (XML or binary expected)" };
+  return parseXmlPlist(text);
+}
+
+/* ------------------------------------------------- checker.py port ---- */
+
+const LEVEL_ERROR = "ERROR", LEVEL_WARNING = "WARNING", LEVEL_NOTE = "NOTE";
+const DEC_RE = /^-?[0-9]+$/;
+const HEXNUM_RE = /^(0[xX][0-9A-Fa-f]+|[0-9]+)$/;
+
+function hexToInt(s) {
+  if (/^0[xX]/.test(s)) return parseInt(s, 16);
+  return parseInt(s, 10);
+}
+
+function checkConfig(config, SCHEMA) {
+  const issues = [];
+  const qmarkHits = [];
+
+  function add(level, path, message) {
+    issues.push({ level: level, path: path, message: message });
+  }
+  function typeNoteSuffix(f) {
+    return f.note ? " -- " + f.note : "";
+  }
+  function typeMismatch(f, value, path) {
+    add(LEVEL_ERROR, path,
+      "invalid type: expected " + f.t.join(" or ") + ", found " +
+      plistTypeName(value) + typeNoteSuffix(f));
+  }
+  function rangeWarn(value, lo, hi, path) {
+    add(LEVEL_WARNING, path,
+      "value " + value + " out of expected range [" +
+      (lo === null || lo === undefined ? "-inf" : lo) + ", " +
+      (hi === null || hi === undefined ? "inf" : hi) + "]");
+  }
+  function checkValue(f, value, path) {
+    const t = plistTypeName(value);
+    if (t === "boolean") return;
+    if (t === "integer") {
+      if ((f.lo !== undefined && value.v < f.lo) ||
+          (f.hi !== undefined && value.v > f.hi))
+        rangeWarn(value.v, f.lo, f.hi, path);
+      return;
+    }
+    if (t === "string") {
+      const s = value.v;
+      if (f.e && f.e.indexOf(s) === -1) {
+        const sug = similar(s, f.e);
+        add(f.ew ? LEVEL_WARNING : LEVEL_ERROR, path,
+          "unknown value '" + s + "'" + formatSuggestions(sug) +
+          " -- expected one of: " + f.e.join(", "));
+      }
+      if (f.p && s) {
+        if (!(new RegExp(f.p)).test(s)) {
+          add(f.pw ? LEVEL_WARNING : LEVEL_ERROR, path,
+            "value '" + s + "' does not match expected format" + typeNoteSuffix(f));
+        }
+      }
+      return;
+    }
+  }
+  function checkFlexSpecials(f, value, path) {
+    const t = plistTypeName(value);
+    if (t === "integer") {
+      if ((f.lo !== undefined && value.v < f.lo) ||
+          (f.hi !== undefined && value.v > f.hi))
+        rangeWarn(value.v, f.lo, f.hi, path);
+      return;
+    }
+    if (t === "string" && f.lo !== undefined) {
+      let iv;
+      if (DEC_RE.test(value.v)) iv = parseInt(value.v, 10);
+      else if (HEXNUM_RE.test(value.v)) iv = hexToInt(value.v);
+      else return;
+      if ((f.lo !== undefined && iv < f.lo) ||
+          (f.hi !== undefined && iv > f.hi))
+        rangeWarn(iv, f.lo, f.hi, path);
+    }
+  }
+  function acceptable(f, value) {
+    const t = plistTypeName(value);
+    if (f.t.indexOf(t) !== -1) return true;
+    if (f.t.indexOf("integer") !== -1 && t === "string" &&
+        (DEC_RE.test(value.v) || HEXNUM_RE.test(value.v)))
+      return true;
+    return false;
+  }
+  function walkDict(node, path, fields, isRoot) {
+    for (const [key, value] of node) {
+      const keyPath = path ? path + "/" + key : key;
+      if (key.charAt(0) === "#") continue;
+      const hadQmark = key.slice(-1) === "?";
+      const clean = hadQmark ? key.slice(0, -1) : key;
+      const depKey = path ? path + "/" + clean : clean;
+
+      if (SCHEMA.dep[depKey] !== undefined && fields && clean in fields) {
+        if (hadQmark) qmarkHits.push(keyPath);
+        add(LEVEL_WARNING, keyPath, "deprecated key -- " + SCHEMA.dep[depKey]);
+        continue;
+      }
+      if (SCHEMA.dep[depKey] !== undefined) {
+        add(LEVEL_WARNING, keyPath, "deprecated key -- " + SCHEMA.dep[depKey]);
+        continue;
+      }
+
+      if (fields === null) {                 // free-form context
+        if (hadQmark) qmarkHits.push(keyPath);
+        walkAny(value, keyPath);
+        continue;
+      }
+      if (fields[clean] !== undefined) {
+        if (hadQmark) qmarkHits.push(keyPath);
+        walkField(fields[clean], value, keyPath);
+        continue;
+      }
+      if (isRoot && clean.indexOf("SMBIOS_") === 0) {
+        walkField(SCHEMA.root["SMBIOS"], value, keyPath);
+        continue;
+      }
+      let sug = similar(clean, Object.keys(fields));
+      if (isRoot) {
+        const deeper = [];
+        for (const sname of Object.keys(fields)) {
+          const sf = fields[sname];
+          if (sf.f) for (const child of Object.keys(sf.f))
+            deeper.push(sname + "/" + child);
+        }
+        sug = sug.concat(similar(clean, deeper)).slice(0, 3);
+      }
+      add(LEVEL_ERROR, keyPath, "unknown key" + formatSuggestions(sug));
+    }
+  }
+  function walkField(f, value, path) {
+    if (!acceptable(f, value)) { typeMismatch(f, value, path); return; }
+    const t = plistTypeName(value);
+    if (t === "dict") {
+      if (f.ff) return;
+      checkFlexSpecials(f, value, path);
+      walkDict(value, path, f.f || {}, false);
+      return;
+    }
+    if (t === "array") {
+      if (f.i) {
+        for (let i = 0; i < value.length; i++)
+          walkField(f.i, value[i], path + "[" + i + "]");
+      } else {
+        for (let i = 0; i < value.length; i++)
+          walkAny(value[i], path + "[" + i + "]");
+      }
+      return;
+    }
+    // scalars
+    if (f.e !== undefined || f.p !== undefined) checkValue(f, value, path);
+    else checkFlexSpecials(f, value, path);
+    // special case: ROM data should be 6 bytes
+    if (t === "data" && f.n === "ROM" && value.v.length !== 6)
+      add(LEVEL_WARNING, path,
+        "ROM data should be exactly 6 bytes, found " + value.v.length);
+  }
+  function walkAny(value, path) {
+    if (value instanceof Map) walkDict(value, path, null, false);
+    else if (Array.isArray(value))
+      for (let i = 0; i < value.length; i++)
+        walkAny(value[i], path + "[" + i + "]");
+  }
+
+  // --- check() ---
+  if (!(config instanceof Map)) {
+    add(LEVEL_ERROR, "",
+      "root of config.plist must be a dict, found " + plistTypeName(config));
+    return issues;
+  }
+  if (config.size === 0) {
+    add(LEVEL_ERROR, "", "config.plist contains no settings (empty dict)");
+    return issues;
+  }
+  // required sections
+  for (const reqName of Object.keys(SCHEMA.req)) {
+    const reqMsg = SCHEMA.req[reqName];
+    if (!config.has(reqName)) {
+      let hint = "";
+      if (config.has(reqName + "?"))
+        hint = " (found '" + reqName + "?'" +
+               " -- remove the trailing '?' to activate it)";
+      add(LEVEL_ERROR, "",
+        "missing required section '" + reqName + "' -- " + reqMsg + hint);
+    } else {
+      const v = config.get(reqName);
+      if (v instanceof Map && v.size === 0)
+        add(LEVEL_ERROR, reqName, "required section is empty -- " + reqMsg);
+    }
+  }
+  walkDict(config, "", SCHEMA.root, true);
+  if (qmarkHits.length) {
+    const examples = qmarkHits.slice(0, 5).map((p) => "'" + p + "'").join(", ");
+    const more = qmarkHits.length <= 5 ? "" :
+      " and " + (qmarkHits.length - 5) + " more";
+    add(LEVEL_NOTE, "",
+      qmarkHits.length + ' key(s) use the sample-file documentation suffix "?"' +
+      " (e.g. " + examples + more + "). This is normal for a stock install: the" +
+      " official Clover package installs config-sample.plist" +
+      ' renamed as config.plist. Clover ignores "?"-suffixed' +
+      " keys, so these settings will NOT be applied -- remove" +
+      ' the "?" suffix on a key to activate it');
+  }
+  return issues;
+}
+
+/* --------------------------------------------------- report.py port ---- */
+
+function plural(n, word) { return n + " " + word + (n !== 1 ? "s" : ""); }
+
+function countKeys(value) {
+  if (value instanceof Map) {
+    let s = 0;
+    for (const v of value.values()) s += countKeys(v);
+    return s;
+  }
+  if (Array.isArray(value)) {
+    let s = 0;
+    for (const v of value) s += countKeys(v);
+    return s;
+  }
+  return 1;
+}
+
+function issueFormat(i) {
+  return i.path ? i.level + ": " + i.message + " at " + i.path
+                : i.level + ": " + i.message;
+}
+
+function fmtSections(config, issues) {
+  const bySec = {};
+  for (const issue of issues) {
+    let top = (issue.path || "").split("/")[0];
+    if (top === "root") top = "";
+    (bySec[top] = bySec[top] || []).push(issue);
+  }
+  const lines = [];
+  const names = [];
+  for (const n of config.keys())
+    if (n.charAt(0) !== "#") names.push(n);
+  let width = "Total".length;
+  for (const n of names) if (n.length > width) width = n.length;
+
+  function row(label, text) {
+    const padded = (label + ":").padEnd(width + 1);
+    lines.push("  " + padded + " " + text);
+  }
+  function detail(sec) {
+    const errs = sec.filter((i) => i.level === LEVEL_ERROR).length;
+    const warns = sec.filter((i) => i.level === LEVEL_WARNING).length;
+    const notes = sec.filter((i) => i.level === LEVEL_NOTE).length;
+    const parts = [];
+    if (errs) parts.push(plural(errs, "error"));
+    if (warns) parts.push(plural(warns, "warning"));
+    if (notes) parts.push(plural(notes, "note"));
+    return parts.join(", ");
+  }
+
+  let totalKeys = 0;
+  for (const name of config.keys()) {
+    if (name.charAt(0) === "#") continue;
+    const nkeys = countKeys(config.get(name));
+    totalKeys += nkeys;
+    if (name.slice(-1) === "?") {
+      row(name, plural(nkeys, "key") +
+        ' -- inert (Clover ignores "?" keys)');
+      bySec[name] = [];
+      continue;
+    }
+    const sec = bySec[name] || [];
+    bySec[name] = [];
+    if (sec.length)
+      row(name, plural(nkeys, "key") + " -- " + detail(sec));
+    else
+      row(name, plural(nkeys, "key") + " verified");
+  }
+  const rootSec = bySec[""] || [];
+  if (rootSec.length) row("(root)", detail(rootSec));
+  row("Total", plural(totalKeys, "key") + " in " + plural(names.length, "section"));
+  return lines;
+}
+
+function formatReport(fname, issues, config) {
+  const order = { ERROR: 0, WARNING: 1, NOTE: 2 };
+  const sorted = issues.slice().sort((a, b) =>
+    ((order[a.level] ?? 9) - (order[b.level] ?? 9)) ||
+    (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+
+  const lines = [];
+  lines.push("Validating " + fname + " ...");
+  for (const i of sorted) lines.push(issueFormat(i));
+  if (config instanceof Map) {
+    lines.push("");
+    lines.push("Verified sections:");
+    for (const l of fmtSections(config, sorted)) lines.push(l);
+  }
+  const errors = issues.filter((i) => i.level === LEVEL_ERROR).length;
+  const warnings = issues.filter((i) => i.level === LEVEL_WARNING).length;
+  const notes = issues.filter((i) => i.level === LEVEL_NOTE).length;
+  lines.push("");
+  lines.push("Summary: " + plural(errors, "error") + ", " +
+             plural(warnings, "warning") + ", " + plural(notes, "note"));
+  if (errors) lines.push("Result: INVALID -- " + errors + " error(s) found");
+  else if (warnings) lines.push("Result: VALID with warnings");
+  else lines.push("Result: VALID");
+  return lines.join("\n") + "\n\n";
+}
+
+/* ---------------------------------------------------- cli entry port ---- */
+
+function runCheck(rawBytes, fname, SCHEMA) {
+  const parsed = parsePlistBytes(rawBytes);
+  if (!parsed.ok) {
+    return "Validating " + fname + " ...\nError: " + parsed.error + "\n\n";
+  }
+  const issues = checkConfig(parsed.value, SCHEMA);
+  for (const d of parsed.dups || []) {
+    issues.push({
+      level: LEVEL_WARNING,
+      path: d[0] ? d[0] : "root",
+      message: "duplicate key '" + d[1] +
+               "' -- the last occurrence silently wins",
+    });
+  }
+  return formatReport(fname, issues, parsed.value);
+}
+
+/* browser + bun/module exports */
+if (typeof module !== "undefined" && module.exports)
+  module.exports = {
+    levenshtein, seqRatio, similar, parsePlistBytes, parseXmlPlist,
+    parseBinaryPlist, checkConfig, formatReport, runCheck, plistTypeName,
+    resolveSchemaRefs, LEVEL_ERROR, LEVEL_WARNING, LEVEL_NOTE,
+  };
+
+</script>
+<script>
+const SCHEMA = {"v":"1.8.3","root":{"ACPI":{"n":"ACPI","t":["dict"],"f":{"AutoMerge":{"n":"AutoMerge","t":["boolean"]},"DSDT":{"n":"DSDT","t":["dict"],"f":{"Debug":{"n":"Debug","t":["boolean"]},"Fixes":{"n":"Fixes","t":["dict"],"f":{"AddDTGP":{"n":"AddDTGP","t":["boolean"]},"AddHDMI":{"n":"AddHDMI","t":["boolean"]},"AddIMEI":{"n":"AddIMEI","t":["boolean"]},"AddMCHC":{"n":"AddMCHC","t":["boolean"]},"AddPNLF":{"n":"AddPNLF","t":["boolean"]},"DeleteUnused":{"n":"DeleteUnused","t":["boolean"]},"FakeLPC":{"n":"FakeLPC","t":["boolean"]},"FixACST":{"n":"FixACST","t":["boolean"]},"FixADP1":{"n":"FixADP1","t":["boolean"]},"FixAirport":{"n":"FixAirport","t":["boolean"]},"FixDarwin":{"n":"FixDarwin","t":["boolean"]},"FixDarwin7":{"n":"FixDarwin7","t":["boolean"]},"FixDisplay":{"n":"FixDisplay","t":["boolean"]},"FixFirewire":{"n":"FixFirewire","t":["boolean"]},"FixHDA":{"n":"FixHDA","t":["boolean"]},"FixHPET":{"n":"FixHPET","t":["boolean"]},"FixIDE":{"n":"FixIDE","t":["boolean"]},"FixIPIC":{"n":"FixIPIC","t":["boolean"]},"FixIntelGfx":{"n":"FixIntelGfx","t":["boolean"]},"FixLAN":{"n":"FixLAN","t":["boolean"]},"FixMutex":{"n":"FixMutex","t":["boolean"]},"FixRTC":{"n":"FixRTC","t":["boolean"]},"FixRegions":{"n":"FixRegions","t":["boolean"]},"FixS3D":{"n":"FixS3D","t":["boolean"]},"FixSATA":{"n":"FixSATA","t":["boolean"]},"FixSBUS":{"n":"FixSBUS","t":["boolean"]},"FixShutdown":{"n":"FixShutdown","t":["boolean"]},"FixTMR":{"n":"FixTMR","t":["boolean"]},"FixUSB":{"n":"FixUSB","t":["boolean"]},"FixWAK":{"n":"FixWAK","t":["boolean"]}}},"Name":{"n":"Name","t":["string"]},"PNLF_UID":{"n":"PNLF_UID","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"Patches":{"n":"Patches","t":["array"],"i":{"n":"Patches[]","t":["dict"],"f":{"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"Find":{"n":"Find","t":["data"]},"Replace":{"n":"Replace","t":["data"]},"MaskFind":{"n":"MaskFind","t":["data"]},"MaskReplace":{"n":"MaskReplace","t":["data"]},"MaskStart":{"n":"MaskStart","t":["data"]},"StartPattern":{"n":"StartPattern","t":["data"]},"RangeFind":{"n":"RangeFind","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"MatchOS":{"n":"MatchOS","t":["string"]},"MatchBuild":{"n":"MatchBuild","t":["string"]},"Procedure":{"n":"Procedure","t":["string"]},"Count":{"n":"Count","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Skip":{"n":"Skip","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Limit":{"n":"Limit","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0}}},"note":"binary DSDT patches"},"ReuseFFFF":{"n":"ReuseFFFF","t":["boolean"]},"Rtc8Allowed":{"n":"Rtc8Allowed","t":["boolean"]},"SuspendOverride":{"n":"SuspendOverride","t":["boolean"]}}},"DisableASPM":{"n":"DisableASPM","t":["boolean"]},"DisabledAML":{"n":"DisabledAML","t":["array"],"i":{"n":"DisabledAML[]","t":["string"]},"note":"list of SSDT/DSDT file names to disable"},"DropTables":{"n":"DropTables","t":["array"],"i":{"n":"DropTables[]","t":["dict"],"f":{"Signature":{"n":"Signature","t":["string"]},"TableId":{"n":"TableId","t":["string"]},"Length":{"n":"Length","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"MaskLength":{"n":"MaskLength","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"DropForAllOS":{"n":"DropForAllOS","t":["boolean"]}}}},"FixHeaders":{"n":"FixHeaders","t":["boolean"]},"FixMCFG":{"n":"FixMCFG","t":["boolean"]},"HaltEnabler":{"n":"HaltEnabler","t":["boolean"]},"PatchAPIC":{"n":"PatchAPIC","t":["boolean"]},"RenameDevices":{"n":"RenameDevices","t":["array"],"i":{"n":"RenameDevices[]","t":["dict"],"ff":1},"note":"dict of device path -> new name"},"ResetAddress":{"n":"ResetAddress","t":["integer","string"],"p":"^(0[xX][0-9A-Fa-f]+|[0-9]+)$","pw":1},"ResetBus":{"n":"ResetBus","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"ResetValue":{"n":"ResetValue","t":["integer","string"],"p":"^(0[xX][0-9A-Fa-f]+|[0-9]+)$","pw":1},"SSDT":{"n":"SSDT","t":["dict"],"f":{"C3Latency":{"n":"C3Latency","t":["integer","string"],"p":"^(0[xX][0-9A-Fa-f]+|[0-9]+)$","pw":1},"DoubleFirstState":{"n":"DoubleFirstState","t":["boolean"]},"DropOem":{"n":"DropOem","t":["boolean"]},"EnableC2":{"n":"EnableC2","t":["boolean"]},"EnableC4":{"n":"EnableC4","t":["boolean"]},"EnableC6":{"n":"EnableC6","t":["boolean"]},"EnableC7":{"n":"EnableC7","t":["boolean"]},"EnableISS":{"n":"EnableISS","t":["boolean"]},"Generate":{"n":"Generate","t":["dict"],"f":{"APLF":{"n":"APLF","t":["boolean"]},"APSN":{"n":"APSN","t":["boolean"]},"CStates":{"n":"CStates","t":["boolean"]},"PStates":{"n":"PStates","t":["boolean"]},"PluginType":{"n":"PluginType","t":["boolean"]}}},"MaxMultiplier":{"n":"MaxMultiplier","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":1},"MinMultiplier":{"n":"MinMultiplier","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":1},"NoDynamicExtract":{"n":"NoDynamicExtract","t":["boolean"]},"NoInline":{"n":"NoInline","t":["boolean"]},"NoOemTableId":{"n":"NoOemTableId","t":["boolean"]},"PLimitDict":{"n":"PLimitDict","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"UnderVoltStep":{"n":"UnderVoltStep","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"UseSystemIO":{"n":"UseSystemIO","t":["boolean"]}}},"SortedOrder":{"n":"SortedOrder","t":["array"],"i":{"n":"SortedOrder[]","t":["string"]}},"smartUPS":{"n":"smartUPS","t":["boolean"]}}},"Boot":{"n":"Boot","t":["dict"],"f":{"Arguments":{"n":"Arguments","t":["string"],"note":"boot-args string, e.g. -v keepsyms=1"},"CustomLogo":{"n":"CustomLogo","t":["boolean","string","data"],"note":"false/true, image path or image data"},"Debug":{"n":"Debug","t":["boolean"]},"DefaultLoader":{"n":"DefaultLoader","t":["string"]},"DefaultVolume":{"n":"DefaultVolume","t":["string"]},"DisableCloverHotkeys":{"n":"DisableCloverHotkeys","t":["boolean"]},"Fast":{"n":"Fast","t":["boolean"]},"Legacy":{"n":"Legacy","t":["string","boolean"],"e":["PBR","BIOS"],"ew":1,"note":"PBR (default) or BIOS"},"LegacyBiosDefaultEntry":{"n":"LegacyBiosDefaultEntry","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"NeverDoRecovery":{"n":"NeverDoRecovery","t":["boolean"]},"NeverHibernate":{"n":"NeverHibernate","t":["boolean"]},"NoEarlyProgress":{"n":"NoEarlyProgress","t":["boolean"]},"RtcHibernateAware":{"n":"RtcHibernateAware","t":["boolean"]},"Secure":{"n":"Secure","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":3},"SignatureFixup":{"n":"SignatureFixup","t":["boolean"]},"SkipHibernateTimeout":{"n":"SkipHibernateTimeout","t":["boolean"]},"StrictHibernate":{"n":"StrictHibernate","t":["boolean"]},"Timeout":{"n":"Timeout","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"note":"seconds before default volume boots; 0 = immediate"},"XMPDetection":{"n":"XMPDetection","t":["integer","string"],"lo":-1,"hi":2,"note":"-1..2, or Yes/No"}}},"BootGraphics":{"n":"BootGraphics","t":["dict"],"f":{"DefaultBackgroundColor":{"n":"DefaultBackgroundColor","t":["integer","string"],"p":"^(0[xX][0-9A-Fa-f]+|[0-9]+)$","pw":1},"EFILoginHiDPI":{"n":"EFILoginHiDPI","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":2},"UIScale":{"n":"UIScale","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":1,"hi":2}}},"CPU":{"n":"CPU","t":["dict"],"f":{"ArtificialFreq":{"n":"ArtificialFreq","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"BusSpeedkHz":{"n":"BusSpeedkHz","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"FrequencyMHz":{"n":"FrequencyMHz","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"HWPEnable":{"n":"HWPEnable","t":["boolean"]},"HWPValue":{"n":"HWPValue","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"QPI":{"n":"QPI","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"SavingMode":{"n":"SavingMode","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"TDP":{"n":"TDP","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"TurboDisable":{"n":"TurboDisable","t":["boolean"]},"Type":{"n":"Type","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"UseARTFrequency":{"n":"UseARTFrequency","t":["boolean"]},"UseArtificialFreq":{"n":"UseArtificialFreq","t":["boolean"]}}},"Devices":{"n":"Devices","t":["dict"],"f":{"AddProperties":{"n":"AddProperties","t":["array"],"i":{"n":"AddProperties[]","t":["dict"],"f":{"Device":{"n":"Device","t":["string"]},"Key":{"n":"Key","t":["string"]},"Value":{"n":"Value","t":["any"]},"Disabled":{"n":"Disabled","t":["boolean"]}}}},"Arpt":{"n":"Arpt","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"Audio":{"n":"Audio","t":["dict"],"f":{"AFGLowPowerState":{"n":"AFGLowPowerState","t":["boolean"]},"Inject":{"n":"Inject","t":["integer","string","boolean"],"note":"layout-id number, \"Detect\" or false"},"ResetHDA":{"n":"ResetHDA","t":["boolean"]}}},"DisableFunctions":{"n":"DisableFunctions","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"FakeID":{"n":"FakeID","t":["dict"],"f":{"ATI":{"n":"ATI","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"IMEI":{"n":"IMEI","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"IntelGFX":{"n":"IntelGFX","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"LAN":{"n":"LAN","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"NVidia":{"n":"NVidia","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"SATA":{"n":"SATA","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"WIFI":{"n":"WIFI","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"XHCI":{"n":"XHCI","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"WMI":{"n":"WMI","t":["boolean"]}}},"ForceHPET":{"n":"ForceHPET","t":["boolean"]},"HDMIInjection":{"n":"HDMIInjection","t":["boolean"]},"IntelMaxValue":{"n":"IntelMaxValue","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"LAN":{"n":"LAN","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"LANInjection":{"n":"LANInjection","t":["boolean"]},"NoDefaultProperties":{"n":"NoDefaultProperties","t":["boolean"]},"Properties":{"n":"Properties","t":["dict"],"ff":1,"note":"dict of PciRoot(0x..)/Pci(..) -> device properties"},"SetIntelBacklight":{"n":"SetIntelBacklight","t":["boolean"]},"SetIntelMaxBacklight":{"n":"SetIntelMaxBacklight","t":["boolean"]},"USB":{"n":"USB","t":["dict"],"f":{"AddClockID":{"n":"AddClockID","t":["boolean"]},"FixOwnership":{"n":"FixOwnership","t":["boolean"]},"HighCurrent":{"n":"HighCurrent","t":["boolean"]},"Inject":{"n":"Inject","t":["boolean"]},"InjectClockID":{"n":"InjectClockID","t":["boolean"]}}},"UseIntelHDMI":{"n":"UseIntelHDMI","t":["boolean"]}}},"DisableDrivers":{"n":"DisableDrivers","t":["array"],"i":{"n":"DisableDrivers[]","t":["string"]}},"GUI":{"n":"GUI","t":["dict"],"f":{"ConsoleMode":{"n":"ConsoleMode","t":["string","integer"]},"Custom":{"n":"Custom","t":["dict"],"f":{"Entries":{"n":"Entries","t":["array"],"i":{"n":"GUI/Custom/Entries[]","t":["dict"],"f":{"AddArguments":{"n":"AddArguments","t":["string"],"note":"appended to the default boot arguments"},"AddSubMenu":{"n":"AddSubMenu","t":["boolean"]},"Arguments":{"n":"Arguments","t":["string"]},"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"FullTitle":{"n":"FullTitle","t":["string"]},"Hidden":{"n":"Hidden","t":["boolean"]},"Hotkey":{"n":"Hotkey","t":["string"],"note":"single character"},"Ignore":{"n":"Ignore","t":["boolean"]},"Image":{"n":"Image","t":["string"],"note":"custom icon name for the entry"},"ImagePath":{"n":"ImagePath","t":["string"]},"InjectKexts":{"n":"InjectKexts","t":["boolean","integer","string"],"e":["Yes","No","Detect","yes","no","detect"],"ew":1},"NoCaches":{"n":"NoCaches","t":["boolean"]},"Path":{"n":"Path","t":["string"]},"Subtitle":{"n":"Subtitle","t":["string"]},"Title":{"n":"Title","t":["string"]},"Type":{"n":"Type","t":["string"],"e":["OSX","OSXInstaller","OSXRecovery","Windows","WindowsInstaller","Linux","LinuxKernel","Other"],"ew":1},"Volume":{"n":"Volume","t":["string"]},"VolumeType":{"n":"VolumeType","t":["string","array"],"e":["Internal","External","Optical","Firewire","USB"],"ew":1},"SubEntries":{"n":"SubEntries","t":["array"],"i":{"$ref":"140390957255904"}}}}},"Legacy":{"n":"Legacy","t":["array"],"i":{"n":"GUI/Custom/Legacy[]","t":["dict"],"f":{"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"FullTitle":{"n":"FullTitle","t":["string"]},"Hidden":{"n":"Hidden","t":["boolean"]},"Hotkey":{"n":"Hotkey","t":["string"]},"Title":{"n":"Title","t":["string"]},"Type":{"n":"Type","t":["string"],"e":["Windows","Linux","Other"],"ew":1},"Volume":{"n":"Volume","t":["string"]},"VolumeType":{"n":"VolumeType","t":["string","array"],"e":["Internal","External","Optical","Firewire","USB"],"ew":1}}}},"Tool":{"n":"Tool","t":["array"],"i":{"n":"GUI/Custom/Tool[]","t":["dict"],"f":{"Arguments":{"n":"Arguments","t":["string"]},"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"FullTitle":{"n":"FullTitle","t":["string"]},"Hidden":{"n":"Hidden","t":["boolean"]},"Hotkey":{"n":"Hotkey","t":["string"]},"ImagePath":{"n":"ImagePath","t":["string"]},"Path":{"n":"Path","t":["string"]},"Title":{"n":"Title","t":["string"]},"Volume":{"n":"Volume","t":["string"]},"VolumeType":{"n":"VolumeType","t":["string","array"],"e":["Internal","External","Optical","Firewire","USB"],"ew":1}}}}}},"CustomIcons":{"n":"CustomIcons","t":["boolean"]},"EmbeddedThemeType":{"n":"EmbeddedThemeType","t":["string"],"e":["Daytime","Night","Light","Dark"],"ew":1},"Hide":{"n":"Hide","t":["array"],"i":{"n":"Hide[]","t":["string"]},"note":"volume names/UUIDs to hide"},"KbdMode":{"n":"KbdMode","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":2},"KbdPrevLang":{"n":"KbdPrevLang","t":["boolean"]},"Language":{"n":"Language","t":["string"]},"Mouse":{"n":"Mouse","t":["dict"],"f":{"CursorEnabled":{"n":"CursorEnabled","t":["boolean"]},"DoubleClickTime":{"n":"DoubleClickTime","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"DoubleClick":{"n":"DoubleClick","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"Enabled":{"n":"Enabled","t":["boolean"]},"Mirror":{"n":"Mirror","t":["boolean"]},"Speed":{"n":"Speed","t":["integer","string"],"p":"^-?[0-9]+$","pw":1}}},"PlayAsync":{"n":"PlayAsync","t":["boolean"]},"ProvideConsoleGop":{"n":"ProvideConsoleGop","t":["boolean"]},"Scan":{"n":"Scan","t":["dict","boolean"],"f":{"Enable":{"n":"Enable","t":["boolean"]},"Entries":{"n":"Entries","t":["boolean"]},"Kernel":{"n":"Kernel","t":["string"]},"Legacy":{"n":"Legacy","t":["boolean","string"],"e":["NO","First","Last"],"ew":1},"Linux":{"n":"Linux","t":["boolean"]},"Tool":{"n":"Tool","t":["boolean"]}}},"ScreenResolution":{"n":"ScreenResolution","t":["string"],"p":"^\\d+x\\d+$","pw":1},"ShowOptimus":{"n":"ShowOptimus","t":["boolean"]},"TextOnly":{"n":"TextOnly","t":["boolean"]},"Theme":{"n":"Theme","t":["string","dict"],"f":{"BootcampStyle":{"n":"BootcampStyle","t":["boolean"]},"CharWidth":{"n":"CharWidth","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"Embedded":{"n":"Embedded","t":["boolean"]},"Font":{"n":"Font","t":["string"],"e":["Gray","White","Dark"],"ew":1},"Layout":{"n":"Layout","t":["string"]},"Path":{"n":"Path","t":["string"]},"Screensaver":{"n":"Screensaver","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"SelectionColor":{"n":"SelectionColor","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"Type":{"n":"Type","t":["string"]}}},"Timezone":{"n":"Timezone","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":24}}},"Graphics":{"n":"Graphics","t":["dict"],"f":{"display-cfg":{"n":"display-cfg","t":["string"],"p":"^(0[xX][0-9A-Fa-f]+|[0-9A-Fa-f]+)?$","note":"hex byte string, e.g. 03010300FFFF0001"},"DualLink":{"n":"DualLink","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":1},"EDID":{"n":"EDID","t":["dict"],"f":{"Custom":{"n":"Custom","t":["data"]},"HorizontalSyncPulseWidth":{"n":"HorizontalSyncPulseWidth","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"Inject":{"n":"Inject","t":["boolean"]},"ProductID":{"n":"ProductID","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"VendorID":{"n":"VendorID","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"VideoInputSignal":{"n":"VideoInputSignal","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"}}},"FBName":{"n":"FBName","t":["string"]},"Inject":{"n":"Inject","t":["dict","boolean","string"],"f":{"ATI":{"n":"ATI","t":["boolean"]},"Intel":{"n":"Intel","t":["boolean"]},"NVidia":{"n":"NVidia","t":["boolean"]}},"note":"preferred form is a dict of ATI/Intel/NVidia booleans"},"ig-platform-id":{"n":"ig-platform-id","t":["string","integer"],"note":"hex string like 0x01620005"},"LoadVBios":{"n":"LoadVBios","t":["boolean"]},"NVCAP":{"n":"NVCAP","t":["string","data"]},"NvidiaGeneric":{"n":"NvidiaGeneric","t":["boolean"]},"NvidiaNoEFI":{"n":"NvidiaNoEFI","t":["boolean"]},"NvidiaSingle":{"n":"NvidiaSingle","t":["boolean"]},"PatchVBios":{"n":"PatchVBios","t":["boolean"]},"PatchVBiosBytes":{"n":"PatchVBiosBytes","t":["array"],"i":{"n":"PatchVBiosBytes[]","t":["dict"],"f":{"Find":{"n":"Find","t":["data"]},"Replace":{"n":"Replace","t":["data"]}}}},"RadeonDeInit":{"n":"RadeonDeInit","t":["boolean"]},"VRAM":{"n":"VRAM","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"VideoPorts":{"n":"VideoPorts","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":6}}},"KernelAndKextPatches":{"n":"KernelAndKextPatches","t":["dict"],"f":{"AppleIntelCPUPM":{"n":"AppleIntelCPUPM","t":["boolean"]},"AppleRTC":{"n":"AppleRTC","t":["boolean"]},"BootPatches":{"n":"BootPatches","t":["array"],"i":{"n":"BootPatches[]","t":["dict"],"f":{"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"Find":{"n":"Find","t":["data"]},"Replace":{"n":"Replace","t":["data"]},"MaskFind":{"n":"MaskFind","t":["data"]},"MaskReplace":{"n":"MaskReplace","t":["data"]},"MaskStart":{"n":"MaskStart","t":["data"]},"StartPattern":{"n":"StartPattern","t":["data"]},"RangeFind":{"n":"RangeFind","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"MatchOS":{"n":"MatchOS","t":["string"]},"MatchBuild":{"n":"MatchBuild","t":["string"]},"Procedure":{"n":"Procedure","t":["string"]},"Count":{"n":"Count","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Skip":{"n":"Skip","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Limit":{"n":"Limit","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0}}}},"Debug":{"n":"Debug","t":["boolean"]},"DellSMBIOSPatch":{"n":"DellSMBIOSPatch","t":["boolean"]},"EightApple":{"n":"EightApple","t":["boolean"]},"FakeCPUID":{"n":"FakeCPUID","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"ForceKextsToLoad":{"n":"ForceKextsToLoad","t":["array"],"i":{"n":"ForceKextsToLoad[]","t":["string"]}},"KernelCpu":{"n":"KernelCpu","t":["boolean"]},"KernelLapic":{"n":"KernelLapic","t":["boolean"]},"KernelPm":{"n":"KernelPm","t":["boolean"]},"KernelToPatch":{"n":"KernelToPatch","t":["array"],"i":{"n":"KernelToPatch[]","t":["dict"],"f":{"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"Find":{"n":"Find","t":["data"]},"Replace":{"n":"Replace","t":["data"]},"MaskFind":{"n":"MaskFind","t":["data"]},"MaskReplace":{"n":"MaskReplace","t":["data"]},"MaskStart":{"n":"MaskStart","t":["data"]},"StartPattern":{"n":"StartPattern","t":["data"]},"RangeFind":{"n":"RangeFind","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"MatchOS":{"n":"MatchOS","t":["string"]},"MatchBuild":{"n":"MatchBuild","t":["string"]},"Procedure":{"n":"Procedure","t":["string"]},"Count":{"n":"Count","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Skip":{"n":"Skip","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Limit":{"n":"Limit","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0}}}},"KernelXCPM":{"n":"KernelXCPM","t":["boolean"]},"KextsToBlock":{"n":"KextsToBlock","t":["array"],"i":{"n":"KextsToBlock[]","t":["dict"],"f":{"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"MatchOS":{"n":"MatchOS","t":["string"]},"Name":{"n":"Name","t":["string"]}}}},"KextsToPatch":{"n":"KextsToPatch","t":["array"],"i":{"n":"KextsToPatch[]","t":["dict"],"f":{"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"Find":{"n":"Find","t":["data"]},"Replace":{"n":"Replace","t":["data"]},"MaskFind":{"n":"MaskFind","t":["data"]},"MaskReplace":{"n":"MaskReplace","t":["data"]},"MaskStart":{"n":"MaskStart","t":["data"]},"StartPattern":{"n":"StartPattern","t":["data"]},"RangeFind":{"n":"RangeFind","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"MatchOS":{"n":"MatchOS","t":["string"]},"MatchBuild":{"n":"MatchBuild","t":["string"]},"Procedure":{"n":"Procedure","t":["string"]},"Count":{"n":"Count","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Skip":{"n":"Skip","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Limit":{"n":"Limit","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"InfoPlistPatch":{"n":"InfoPlistPatch","t":["boolean"]},"Name":{"n":"Name","t":["string"],"note":"kext bundle id or name"},"MatchKeyboardLanguage":{"n":"MatchKeyboardLanguage","t":["string"]},"BundleVersion":{"n":"BundleVersion","t":["string"]},"PseudoCPUID":{"n":"PseudoCPUID","t":["string"]}}}},"PanicNoKextDump":{"n":"PanicNoKextDump","t":["boolean"]}}},"Quirks":{"n":"Quirks","t":["dict"],"f":{"AppleXcpmExtraMsrs":{"n":"AppleXcpmExtraMsrs","t":["boolean"]},"AppleXcpmForceBoost":{"n":"AppleXcpmForceBoost","t":["boolean"]},"AutoModernCPUQuirks":{"n":"AutoModernCPUQuirks","t":["boolean"]},"AvoidRuntimeDefrag":{"n":"AvoidRuntimeDefrag","t":["boolean"]},"ClearTaskSwitchBit":{"n":"ClearTaskSwitchBit","t":["boolean"]},"DevirtualiseMmio":{"n":"DevirtualiseMmio","t":["boolean"]},"DisableIoMapper":{"n":"DisableIoMapper","t":["boolean"]},"DisableIoMapperMapping":{"n":"DisableIoMapperMapping","t":["boolean"]},"DisableLinkeditJettison":{"n":"DisableLinkeditJettison","t":["boolean"]},"DisableSingleUser":{"n":"DisableSingleUser","t":["boolean"]},"DisableVariableWrite":{"n":"DisableVariableWrite","t":["boolean"]},"DiscardHibernateMap":{"n":"DiscardHibernateMap","t":["boolean"]},"DummyPowerManagement":{"n":"DummyPowerManagement","t":["boolean"]},"EnableSafeModeSlide":{"n":"EnableSafeModeSlide","t":["boolean"]},"EnableWriteUnprotector":{"n":"EnableWriteUnprotector","t":["boolean"]},"ExtendBTFeatureFlags":{"n":"ExtendBTFeatureFlags","t":["boolean"]},"ExternalDiskIcons":{"n":"ExternalDiskIcons","t":["boolean"]},"ForceAquantiaEthernet":{"n":"ForceAquantiaEthernet","t":["boolean"]},"ForceExitBootServices":{"n":"ForceExitBootServices","t":["boolean"]},"ForceOcWriteFlash":{"n":"ForceOcWriteFlash","t":["boolean"]},"FuzzyMatch":{"n":"FuzzyMatch","t":["boolean"]},"IncreasePciBarSize":{"n":"IncreasePciBarSize","t":["boolean"]},"KernelCache":{"n":"KernelCache","t":["string"],"e":["Auto","Cacheless","Mkext","Prelinked"],"ew":1},"MmioWhitelist":{"n":"MmioWhitelist","t":["array"],"i":{"n":"MmioWhitelist[]","t":["dict"],"f":{"Address":{"n":"Address","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"Comment":{"n":"Comment","t":["string"]},"Enabled":{"n":"Enabled","t":["boolean"]}}}},"PowerTimeoutKernelPanic":{"n":"PowerTimeoutKernelPanic","t":["boolean"]},"ProtectMemoryRegions":{"n":"ProtectMemoryRegions","t":["boolean"]},"ProtectSecureBoot":{"n":"ProtectSecureBoot","t":["boolean"]},"ProtectUefiServices":{"n":"ProtectUefiServices","t":["boolean"]},"ProvideCurrentCpuInfo":{"n":"ProvideCurrentCpuInfo","t":["boolean"]},"ProvideCustomSlide":{"n":"ProvideCustomSlide","t":["boolean"]},"ProvideMaxSlide":{"n":"ProvideMaxSlide","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":255},"RebuildAppleMemoryMap":{"n":"RebuildAppleMemoryMap","t":["boolean"]},"ResizeAppleGpuBars":{"n":"ResizeAppleGpuBars","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":-1,"hi":15},"ResizeGpuBars":{"n":"ResizeGpuBars","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":-1,"hi":15},"SetupVirtualMap":{"n":"SetupVirtualMap","t":["boolean"]},"SignalAppleOS":{"n":"SignalAppleOS","t":["boolean"]},"SyncRuntimePermissions":{"n":"SyncRuntimePermissions","t":["boolean"]},"ThirdPartyDrives":{"n":"ThirdPartyDrives","t":["boolean"]},"TscSyncTimeout":{"n":"TscSyncTimeout","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"XhciPortLimit":{"n":"XhciPortLimit","t":["boolean"]}}},"RtVariables":{"n":"RtVariables","t":["dict"],"f":{"Block":{"n":"Block","t":["array"],"i":{"n":"Block[]","t":["dict"],"f":{"Comment":{"n":"Comment","t":["string"]},"Disabled":{"n":"Disabled","t":["boolean"]},"Guid":{"n":"Guid","t":["string"]},"Name":{"n":"Name","t":["string"]}}}},"BooterConfig":{"n":"BooterConfig","t":["integer","string"],"p":"^(0[xX][0-9A-Fa-f]+|[0-9]+)$","pw":1,"lo":0},"CsrActiveConfig":{"n":"CsrActiveConfig","t":["integer","string"],"p":"^(0[xX][0-9A-Fa-f]+|[0-9]+)$","pw":1,"lo":0},"HWTarget":{"n":"HWTarget","t":["string"]},"MLB":{"n":"MLB","t":["string"],"note":"Apple Board Serial: typically 17 characters"},"ROM":{"n":"ROM","t":["data","string"],"e":["UseMacAddr0","UseMacAddr1","UseMacAddr2","UseMacAddr3"],"note":"6-byte data, hex string, or UseMacAddr0..3"}}},"SMBIOS":{"n":"SMBIOS","t":["dict"],"f":{"BiosReleaseDate":{"n":"BiosReleaseDate","t":["string"]},"BiosVendor":{"n":"BiosVendor","t":["string"]},"BiosVersion":{"n":"BiosVersion","t":["string"]},"Board-ID":{"n":"Board-ID","t":["string"]},"BoardManufacturer":{"n":"BoardManufacturer","t":["string"]},"BoardNumber":{"n":"BoardNumber","t":["string"]},"BoardSerialNumber":{"n":"BoardSerialNumber","t":["string"]},"BoardType":{"n":"BoardType","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0,"hi":255},"BoardVersion":{"n":"BoardVersion","t":["string"]},"ChassisAssetTag":{"n":"ChassisAssetTag","t":["string"]},"ChassisManufacturer":{"n":"ChassisManufacturer","t":["string"]},"ChassisType":{"n":"ChassisType","t":["integer","string"],"lo":0,"hi":255},"ChassisSerialNumber":{"n":"ChassisSerialNumber","t":["string"]},"ChassisVersion":{"n":"ChassisVersion","t":["string"]},"EfiVersion":{"n":"EfiVersion","t":["string"]},"ExtendedFirmwareFeatures":{"n":"ExtendedFirmwareFeatures","t":["string","integer"]},"ExtendedFirmwareFeaturesMask":{"n":"ExtendedFirmwareFeaturesMask","t":["string","integer"]},"FakeCPUID":{"n":"FakeCPUID","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"Family":{"n":"Family","t":["string"]},"FirmwareFeatures":{"n":"FirmwareFeatures","t":["string","integer"]},"FirmwareFeaturesMask":{"n":"FirmwareFeaturesMask","t":["string","integer"]},"LocationInChassis":{"n":"LocationInChassis","t":["string"]},"Manufacturer":{"n":"Manufacturer","t":["string"]},"Memory":{"n":"Memory","t":["dict"],"f":{"Channels":{"n":"Channels","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":1,"hi":4},"Modules":{"n":"Modules","t":["array"],"i":{"n":"Modules[]","t":["dict"],"f":{"Frequency":{"n":"Frequency","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Part":{"n":"Part","t":["string"]},"Serial":{"n":"Serial","t":["string"]},"Size":{"n":"Size","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Slot":{"n":"Slot","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":0},"Type":{"n":"Type","t":["string"],"e":["DDR","DDR2","DDR3","DDR4","DDR5","LPDDR3","LPDDR4","LPDDR5"],"ew":1},"Vendor":{"n":"Vendor","t":["string"]}}}},"SlotCount":{"n":"SlotCount","t":["integer","string"],"p":"^-?[0-9]+$","pw":1,"lo":1}}},"MemoryRank":{"n":"MemoryRank","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"Mobile":{"n":"Mobile","t":["boolean"]},"NoRomInfo":{"n":"NoRomInfo","t":["boolean"]},"PlatformFeature":{"n":"PlatformFeature","t":["string","integer"]},"ProductName":{"n":"ProductName","t":["string"]},"SerialNumber":{"n":"SerialNumber","t":["string"]},"Slots":{"n":"Slots","t":["array"],"i":{"n":"Slots[]","t":["dict"],"f":{"Device":{"n":"Device","t":["string"]},"ID":{"n":"ID","t":["integer","string"],"p":"^-?[0-9]+$","pw":1},"Name":{"n":"Name","t":["string"]},"Type":{"n":"Type","t":["integer","string"],"p":"^-?[0-9]+$","pw":1}}}},"SmUUID":{"n":"SmUUID","t":["string"],"p":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"},"SmbiosVersion":{"n":"SmbiosVersion","t":["string","integer"],"p":"^(0[xX][0-9A-Fa-f]*)?$"},"Trust":{"n":"Trust","t":["boolean"]},"Version":{"n":"Version","t":["string"]}}},"SystemParameters":{"n":"SystemParameters","t":["dict"],"f":{"BacklightLevel":{"n":"BacklightLevel","t":["string","integer"]},"CustomUUID":{"n":"CustomUUID","t":["string"],"p":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"},"InjectKexts":{"n":"InjectKexts","t":["boolean","integer","string"],"e":["Yes","No","Detect","yes","no","detect"],"ew":1,"note":"Yes/No/Detect (string), true/false or -1..2"},"InjectSystemID":{"n":"InjectSystemID","t":["boolean"]},"NoCaches":{"n":"NoCaches","t":["boolean"]},"NvramPrefsList":{"n":"NvramPrefsList","t":["boolean"]},"NvidiaWeb":{"n":"NvidiaWeb","t":["boolean"]}}}},"req":{"Quirks":"OpenCore-style quirks are integrated into Clover since r5123 and are vital for booting modern macOS -- copy the Quirks dict from the official config-sample.plist"},"dep":{"ACPI/DSDT/FixDebug":"legacy single switches were replaced by ACPI/DSDT/Fixes dict","ACPI/DSDT/DropOEM_DSM":"legacy option, replaced by ACPI/DSDT/Fixes and DisabledAML","Boot/FastBoot":"renamed to Boot/Fast","Boot/Log":"moved to Boot/Debug (boolean) in recent Clover","Devices/AddProperties":"replaced by Devices/Properties dict","Devices/Audio/HDAInjection":"renamed to Devices/Audio/Inject","Devices/USB/InjectClockID":"renamed to Devices/USB/AddClockID","Graphics/IgPlatform":"renamed to Graphics/ig-platform-id","GUI/HideVolume":"renamed to GUI/Hide","KernelAndKextPatches/AtiConfig":"legacy Clover option, no longer used by modern Clover","KernelAndKextPatches/AtiConnectors":"legacy Clover option, no longer used by modern Clover","KernelAndKextPatches/BlockSkywalk":"removed in Clover r5155 -- use the KernelAndKextPatches/KextsToBlock section to block com.apple.iokit.IOSkywalkFamily instead","SMBIOS/BoardNumber":"renamed to SMBIOS/Board-ID"},"$refpaths":{"140390957255904":["root","GUI","f","Custom","f","Entries","i"]}};
+resolveSchemaRefs(SCHEMA);
+document.getElementById("ver").textContent = "v" + SCHEMA.v;
+document.getElementById("ver2").textContent = "v" + SCHEMA.v;
+
+const $ = (id) => document.getElementById(id);
+const drop = $("drop"), fileIn = $("file"), pasteIn = $("paste"),
+      runBtn = $("run"), clearBtn = $("clear"),
+      statusEl = $("status"), outwrap = $("outwrap"), reportEl = $("report");
+
+function show(fname, bytes) {
+  let report;
+  try {
+    report = runCheck(bytes, fname, SCHEMA);
+  } catch (e) {
+    statusEl.textContent = "Failed: " + (e && e.message ? e.message : e);
+    statusEl.className = "err";
+    return;
+  }
+  reportEl.textContent = report.trimEnd();
+  outwrap.style.display = "block";
+  outwrap.scrollIntoView({ behavior: "smooth", block: "start" });
+  const ok = report.indexOf("Result: VALID") !== -1 &&
+             report.indexOf("INVALID") === -1;
+  statusEl.textContent = fname + (ok ? " — valid." : " — problems found, see report.");
+  statusEl.className = ok ? "ok" : "err";
+}
+
+drop.addEventListener("click", () => fileIn.click());
+drop.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") fileIn.click();
+});
+["dragover", "dragenter"].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  f.arrayBuffer().then((b) => show(f.name, new Uint8Array(b)));
+});
+fileIn.addEventListener("change", () => {
+  const f = fileIn.files && fileIn.files[0];
+  if (!f) return;
+  f.arrayBuffer().then((b) => show(f.name, new Uint8Array(b)));
+});
+runBtn.addEventListener("click", () => {
+  const txt = pasteIn.value;
+  if (!txt.trim()) {
+    statusEl.textContent = "Nothing to check — drop a file or paste XML first.";
+    statusEl.className = "err";
+    return;
+  }
+  show("pasted-config.plist", new TextEncoder().encode(txt));
+});
+clearBtn.addEventListener("click", () => {
+  pasteIn.value = ""; fileIn.value = "";
+  outwrap.style.display = "none"; reportEl.textContent = "";
+  statusEl.textContent = ""; statusEl.className = "";
+});
+</script>
+</body>
+</html>
