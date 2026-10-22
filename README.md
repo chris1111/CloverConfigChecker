@@ -103,6 +103,8 @@ after that, from any directory:
      clover-config-checker ~/Desktop/config.plist
 
 
+### NEW: Use from Github Pages ➥ [Clover Config Checker](https://chris1111.github.io/CloverConfigChecker/)
+
 READING THE REPORT
 ------------------
 A clean run looks like this:
